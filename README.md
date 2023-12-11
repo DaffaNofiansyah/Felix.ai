@@ -24,6 +24,548 @@ Felix.ai merupakan asisten rumah tangga berbasis pengenalan suara. Proyek ini me
 
 3.  ### Implementasi kode
 
+	Kode tanpa fitur output speaker
+	```
+   	#include <SoftwareSerial.h>
+	#include "VoiceRecognitionV3.h"
+	#include <SD.h>
+	#include <TMRpcm.h>
+	
+	VR myVR(2, 3); // 2:RX 3:TX, you can choose your favourite pins.
+	TMRpcm tmrpcm;
+	
+	uint8_t record[7]; // save record
+	uint8_t buf[64];
+	
+	int led = 13;
+	
+	int group = 0;
+	
+	#define Felix (0)
+	
+	#define commandMusic (1)
+	#define commandLight (2)
+	#define commandSelf (3)
+	#define commandClock (4)
+	#define commandDate (5)
+	#define commandBack (6)
+	
+	#define musicLofi (10)
+	#define musicRock (11)
+	#define musicHiphop (12)
+	#define musicStop (13)
+	#define musicPlay (14)
+	
+	#define lightsOn (20)
+	#define lightsOff (21)
+	
+	#define selfName (30)
+	#define selfRelation (31)
+	#define selfUser (32)
+	#define selfThank (33)
+	
+	boolean ack;
+	
+	void setup()
+	{
+	  /** initialize */
+	  myVR.begin(9600);
+	
+	  Serial.begin(115200);
+	  Serial.println("Elechouse Voice Recognition V3 Module\r\nMulti Commands sample");
+	
+	  pinMode(led, OUTPUT);
+	
+	  if (myVR.clear() == 0)
+	  {
+	    Serial.println("Recognizer cleared.");
+	  }
+	  else
+	  {
+	    Serial.println("Not find VoiceRecognitionModule.");
+	    Serial.println("Please check connection and restart Arduino.");
+	    while (1)
+	      ;
+	  }
+	
+	  record[0] = Felix;
+	  record[1] = commandMusic;
+	  record[2] = commandLight;
+	  record[3] = commandSelf;
+	  record[4] = commandClock;
+	  record[5] = commandDate;
+	  record[6] = commandBack;
+	  group = 0;
+	  if (myVR.load(record, 7) >= 0)
+	  {
+	    printRecord(record, 7);
+	    Serial.println(F("loaded."));
+	  }
+	
+	  // Initialize SD card
+	  if (!SD.begin(4)) // Pin 4 is connected to the SD card module's CS pin
+	  {
+	    Serial.println("SD card initialization failed!");
+	    while (1);
+	  }
+	
+	  // Set up the tmrpcm library
+	  tmrpcm.speakerPin = 9; // Pin 9 is connected to the positive terminal of the speaker
+	}
+	
+	void loop()
+	{
+	  int ret;
+	  ret = myVR.recognize(buf, 50);
+	  if (ret > 0)
+	  {
+	    switch (buf[1])
+	    {
+	    case Felix:
+	      break;
+	    case commandMusic:
+	      felixMusic();
+	      defaultSettings();
+	      break;
+	    case commandLight:
+	      felixLight();
+	      defaultSettings();
+	      break;
+	    case commandSelf:
+	      felixSelf();
+	      defaultSettings();
+	      break;
+	    case commandDate:
+	      break;
+	    case commandClock:
+	      break;
+	    case commandBack:
+	      break;
+	    default:
+	      break;
+	    }
+	    /** voice recognized */
+	    printVR(buf);
+	  }
+	}
+	
+	void printSignature(uint8_t *buf, int len)
+	{
+	  int i;
+	  for (i = 0; i < len; i++)
+	  {
+	    if (buf[i] > 0x19 && buf[i] < 0x7F)
+	    {
+	      Serial.write(buf[i]);
+	    }
+	    else
+	    {
+	      Serial.print("[");
+	      Serial.print(buf[i], HEX);
+	      Serial.print("]");
+	    }
+	  }
+	}
+	
+	void printVR(uint8_t *buf)
+	{
+	  Serial.println("VR Index\tGroup\tRecordNum\tSignature");
+	
+	  Serial.print(buf[2], DEC);
+	  Serial.print("\t\t");
+	
+	  if (buf[0] == 0xFF)
+	  {
+	    Serial.print("NONE");
+	  }
+	  else if (buf[0] & 0x80)
+	  {
+	    Serial.print("UG ");
+	    Serial.print(buf[0] & (~0x80), DEC);
+	  }
+	  else
+	  {
+	    Serial.print("SG ");
+	    Serial.print(buf[0], DEC);
+	  }
+	  Serial.print("\t");
+	
+	  Serial.print(buf[1], DEC);
+	  Serial.print("\t\t");
+	  if (buf[3] > 0)
+	  {
+	    printSignature(buf + 4, buf[3]);
+	  }
+	  else
+	  {
+	    Serial.print("NONE");
+	  }
+	  Serial.println();
+	}
+	
+	void printRecord(uint8_t *buf, uint8_t len)
+	{
+	  Serial.print(F("Record: "));
+	  for (int i = 0; i < len; i++)
+	  {
+	    Serial.print(buf[i], DEC);
+	    Serial.print(", ");
+	  }
+	}
+	
+	void defaultSettings()
+	{
+	  myVR.clear();
+	  record[0] = Felix;
+	  record[1] = musicLofi;
+	  record[2] = musicRock;
+	  record[3] = musicHiphop;
+	  record[4] = musicStop;
+	  record[5] = musicPlay;
+	  record[6] = commandBack;
+	  if (myVR.load(record, 7) >= 0)
+	  {
+	    printRecord(record, 7);
+	    Serial.println(F("loaded."));
+	  }
+	}
+	
+	void felixMusic()
+	{
+	  myVR.clear();
+	  record[0] = Felix;
+	  record[1] = musicLofi;
+	  record[2] = musicRock;
+	  record[3] = musicHiphop;
+	  record[4] = musicStop;
+	  record[5] = musicPlay;
+	  record[6] = commandBack;
+	  if (myVR.load(record, 7) >= 0)
+	  {
+	    printRecord(record, 7);
+	    Serial.println(F("loaded."));
+	  }
+	  ack = true;
+	  while (ack == true)
+	  {
+	    ret = myVR.recognize(buf, 50);
+	    if (ret > 0)
+	    {
+	      switch (buf[1])
+	      {
+	      case musicLofi:
+	        playWavFile("lofi.wav");
+	        break;
+	      case musicRock:
+	        playWavFile("rock.wav");
+	        break;
+	      case musicHiphop:
+	        playWavFile("hiphop.wav");
+	        break;
+	      case musicStop:
+	        tmrpcm.stopPlayback();
+	        break;
+	      case commandBack:
+	        ack = false;
+	        break;
+	      default:
+	        break;
+	      }
+	    }
+	  }
+	}
+	
+	void felixLight()
+	{
+	  myVR.clear();
+	  record[0] = Felix;
+	  record[1] = lightsOn;
+	  record[2] = lightsOff;
+	  record[3] = commandSelf;
+	  record[4] = commandClock;
+	  record[5] = commandDate;
+	  record[6] = commandBack;
+	  if (myVR.load(record, 7) >= 0)
+	  {
+	    printRecord(record, 7);
+	    Serial.println(F("loaded."));
+	  }
+	  ack = true;
+	  while (ack == true)
+	  {
+	    ret = myVR.recognize(buf, 50);
+	    if (ret > 0)
+	    {
+	      switch (buf[1])
+	      {
+	      case lightsOn:
+	        // Code to turn on lights
+	        break;
+	      case lightsOff:
+	        // Code to turn off lights
+	        break;
+	      case commandBack:
+	        ack = false;
+	        break;
+	      default:
+	        break;
+	      }
+	    }
+	  }
+	}
+	
+	void felixSelf()
+	{
+	  myVR.clear();
+	  record[0] = Felix;
+	  record[1] = selfName;
+	  record[2] = selfRelation;
+	  record[3] = selfUser;
+	  record[4] = selfThank;
+	  record[5] = commandDate;
+	  record[6] = commandBack;
+	  if (myVR.load(record, 7) >= 0)
+	  {
+	    printRecord(record, 7);
+	    Serial.println(F("loaded."));
+	  }
+	  ack = true;
+	  while (ack == true)
+	  {
+	    ret = myVR.recognize(buf, 50);
+	    if (ret > 0)
+	    {
+	      switch (buf[1])
+	      {
+	      case selfName:
+	        playWavFile("name.wav");
+	        break;
+	      case selfRelation:
+	        playWavFile("relation.wav");
+	        break;
+	      case selfUser:
+	        playWavFile("user.wav");
+	        break;
+	      case selfThank:
+	        playWavFile("thanks.wav");
+	        break;
+	      case commandBack:
+	        ack = false;
+	        break;
+	      default:
+	        break;
+	      }
+	    }
+	  }
+	}
+	
+	void playWavFile(const char *filename)
+	{
+	  // Open the file
+	  File myFile = SD.open(filename);
+	  
+	  if (myFile)
+	  {
+	    tmrpcm.play(myFile); // Play the file
+	    myFile.close();      // Close the file
+	  }
+	  else
+	  {
+	    Serial.println("Error opening file");
+	  }
+	}
+   	```
+
+ 	Kode dengan fitur output speaker
+	```   	
+	#include <SoftwareSerial.h>
+	#include "VoiceRecognitionV3.h"
+	
+	VR myVR(8, 9);    // 8:TX 9:RX, you can choose your favorite pins.
+	
+	const int redPin = 3;    // Pin for the red LED
+	const int greenPin = 10;  // Pin for the green LED
+	const int bluePin = 13;   // Pin for the blue LED
+	int8_t records[7]; // save record
+	uint8_t buf[64];
+	
+	int led = 13;
+	
+	#define onRecord    (0)
+	#define offRecord   (1) 
+	
+	/**
+	  @brief   Print signature, if the character is invisible, 
+	           print hexible value instead.
+	  @param   buf     --> command length
+	           len     --> number of parameters
+	*/
+	
+	#define lightsOn (20)
+	#define lightsOff (21)
+	#define lightsRed (23)
+	#define lightsGreen (24)
+	#define lightsBlue (22)
+	#define lightsYellow (25)
+	
+	void printSignature(uint8_t *buf, int len)
+	{
+	  int i;
+	  for(i=0; i<len; i++){
+	    if(buf[i]>0x19 && buf[i]<0x7F){
+	      Serial.write(buf[i]);
+	    }
+	    else{
+	      Serial.print("[");
+	      Serial.print(buf[i], HEX);
+	      Serial.print("]");
+	    }
+	  }
+	}
+	
+	/**
+	  @brief   Print signature, if the character is invisible, 
+	           print hexible value instead.
+	  @param   buf  -->  VR module return value when voice is recognized.
+	             buf[0]  -->  Group mode(FF: None Group, 0x8n: User, 0x0n:System
+	             buf[1]  -->  number of record which is recognized. 
+	             buf[2]  -->  Recognizer index(position) value of the recognized record.
+	             buf[3]  -->  Signature length
+	             buf[4]~buf[n] --> Signature
+	*/
+	void printVR(uint8_t *buf)
+	{
+	  Serial.println("VR Index\tGroup\tRecordNum\tSignature");
+	
+	  Serial.print(buf[2], DEC);
+	  Serial.print("\t\t");
+	
+	  if(buf[0] == 0xFF){
+	    Serial.print("NONE");
+	  }
+	  else if(buf[0]&0x80){
+	    Serial.print("UG ");
+	    Serial.print(buf[0]&(~0x80), DEC);
+	  }
+	  else{
+	    Serial.print("SG ");
+	    Serial.print(buf[0], DEC);
+	  }
+	  Serial.print("\t");
+	
+	  Serial.print(buf[1], DEC);
+	  Serial.print("\t\t");
+	  if(buf[3]>0){
+	    printSignature(buf+4, buf[3]);
+	  }
+	  else{
+	    Serial.print("NONE");
+	  }
+	  Serial.println("\r\n");
+	}
+	
+	void setup()
+	{
+	  /** initialize */
+	  myVR.begin(9600);
+	
+	  Serial.begin(115200);
+	  Serial.println("Elechouse Voice Recognition V3 Module\r\nControl LED sample");
+	
+	  pinMode(redPin, OUTPUT);
+	  pinMode(greenPin, OUTPUT);
+	  pinMode(bluePin, OUTPUT);
+	
+	  if (myVR.clear() == 0)
+	  {
+	    Serial.println("Recognizer cleared.");
+	  }
+	  else
+	  {
+	    Serial.println("Not find VoiceRecognitionModule.");
+	    Serial.println("Please check connection and restart Arduino.");
+	    while (1)
+	      ;
+	  }
+	
+	  if (myVR.load((uint8_t)lightsOn) >= 0)
+	  {
+	    Serial.println("lightsOn loaded");
+	  }
+	
+	  if (myVR.load((uint8_t)lightsOff) >= 0)
+	  {
+	    Serial.println("lightsOff loaded");
+	  }
+	
+	  if (myVR.load((uint8_t)lightsRed) >= 0)
+	  {
+	    Serial.println("lightsRed loaded");
+	  }
+	
+	  if (myVR.load((uint8_t)lightsGreen) >= 0)
+	  {
+	    Serial.println("lightsGreen loaded");
+	  }
+	
+	  if (myVR.load((uint8_t)lightsBlue) >= 0)
+	  {
+	    Serial.println("lightsBlue loaded");
+	  }
+	
+	  if (myVR.load((uint8_t)lightsYellow) >= 0)
+	  {
+	    Serial.println("lightsYellow loaded");
+	  }
+	}
+	
+	void loop()
+	{
+	  int ret;
+	  ret = myVR.recognize(buf, 1500);
+	
+	  if (ret > 0)
+	  {
+	    switch (buf[1])
+	    {
+	    case lightsOn:
+	      setColor(255, 255, 255);
+	      delay(1000); // Add a delay after turning on lights
+	      break;
+	    case lightsOff:
+	      setColor(0, 0, 0);
+	      delay(1000); // Add a delay after turning off lights
+	      break;
+	    case lightsRed:
+	      setColor(255, 0, 0);
+	      delay(1000); // Add a delay after setting lights to red
+	      break;
+	    case lightsGreen:
+	      setColor(0, 255, 0);
+	      delay(1000); // Add a delay after setting lights to green
+	      break;
+	    case lightsBlue:
+	      setColor(0, 0, 255);
+	      delay(1000); // Add a delay after setting lights to blue
+	      break;
+	    case lightsYellow:
+	      setColor(255, 150, 200);
+	      delay(1000); // Add a delay after setting lights to yellow
+	      break;
+	    default:
+	      break;
+	    }
+	  }
+	}
+	
+	void setColor(int red, int green, int blue)
+	{
+	  analogWrite(redPin, red);
+	  analogWrite(greenPin, green);
+	  analogWrite(bluePin, blue);
+	}
+   	```
+      
 	Pertama dilakukan inisiasi variabel konstan dan Voice Recognition itu sendiri. Di buat array record yang digunakan untuk menyimpan suaranya dan array buffer.
 
 	1.  fungsi void setup() adalah fungsi awal untuk melakukan inisiasi. dilakukan penyetelan record[i] untuk masing-masing command (Felix, commandMusic, commandLight, commandSelf, commandClock, commandDate, commandBack).
